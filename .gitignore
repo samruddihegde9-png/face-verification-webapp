@@ -1,0 +1,21 @@
+# Virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Uploaded images
+uploads/
+
+# InsightFace model cache (auto-downloaded)
+.insightface/
+~/.insightface/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Large model files if any
+*.onnx
+*.pt

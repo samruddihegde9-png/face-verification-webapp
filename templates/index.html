@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Verification</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="container">
+    <h2>Face Verification</h2>
+
+    <video id="video" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <button onclick="capture()">Capture & Verify</button>
+
+    <form id="uploadForm" method="POST" action="/match" enctype="multipart/form-data">
+        <input type="hidden" name="imageData" id="imageData">
+    </form>
+</div>
+
+<script>
+const video = document.getElementById('video');
+
+// Access phone camera
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => {
+    video.srcObject = stream;
+});
+
+// Capture image
+function capture() {
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    context.drawImage(video, 0, 0);
+
+    const imageData = canvas.toDataURL('image/jpeg');
+    document.getElementById('imageData').value = imageData;
+
+    document.getElementById('uploadForm').submit();
+}
+</script>
+</body>
+</html>
