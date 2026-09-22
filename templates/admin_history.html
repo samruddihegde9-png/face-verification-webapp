@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('admin.dashboard') }}">&larr; Back to dashboard</a></p>
+<h2>Verification History</h2>
+<div class="card">
+    <table class="data-table">
+        <thead>
+            <tr><th>Photo</th><th>When</th><th>Decision</th><th>Matched</th><th>Score</th><th>Liveness</th><th>Source</th></tr>
+        </thead>
+        <tbody>
+        {% for log in logs %}
+            <tr>
+                <td>{% if log['image_path'] %}<img class="thumb" src="/media?path={{ log['image_path'] }}">{% else %}—{% endif %}</td>
+                <td>{{ log['created_at'][:16].replace('T', ' ') }}</td>
+                <td><span class="status-badge status-{{ log['decision'] }}">{{ log['decision'] }}</span></td>
+                <td>{{ log['matched_name'] or '—' }}</td>
+                <td>{{ '%.2f'|format(log['score']) if log['score'] is not none else '—' }}</td>
+                <td>{% if log['liveness_passed'] is none %}n/a{% elif log['liveness_passed'] %}✓{% else %}✗{% endif %}</td>
+                <td>{{ log['source'] }}</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="7" class="muted">No verification attempts logged yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,48 +1,144 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Face Verification</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-
-<body>
-<div class="container">
+{% extends "base.html" %}
+{% block title %}Verify &middot; {{ app_name }}{% endblock %}
+{% block content %}
+<div class="card center">
     <h2>Face Verification</h2>
+    <p class="muted">Position your face in the frame, then capture.</p>
 
-    <video id="video" autoplay></video>
-    <canvas id="canvas" style="display:none;"></canvas>
+    <div class="video-wrap">
+        <video id="video" autoplay playsinline muted></video>
+    </div>
 
-    <button onclick="capture()">Capture & Verify</button>
+    <div class="checkbox-row center" style="justify-content:center; margin-top:14px;">
+        <input type="checkbox" id="livenessToggle" checked>
+        <label for="livenessToggle" style="margin:0; font-weight:500;">Require liveness check (blink challenge)</label>
+    </div>
 
-    <form id="uploadForm" method="POST" action="/match" enctype="multipart/form-data">
-        <input type="hidden" name="imageData" id="imageData">
-    </form>
+    <div class="actions">
+        <button class="btn" id="captureBtn" onclick="runVerification()">Capture &amp; Verify</button>
+    </div>
+
+    <p id="statusLine" class="muted" style="min-height:20px; margin-top:10px;"></p>
 </div>
 
+<div class="card center hidden" id="resultCard">
+    <h3>Result</h3>
+    <div id="resultBadge"></div>
+    <img id="resultImage" class="result-image hidden">
+    <div class="score-bar-track hidden" id="scoreTrack">
+        <div class="score-bar-fill" id="scoreFill" style="width:0%"></div>
+    </div>
+    <p id="resultMessage" class="muted" style="margin-top:12px;"></p>
+    <div id="livenessDetail" class="muted" style="font-size:0.8rem;"></div>
+</div>
+
+<script src="{{ url_for('static', filename='camera.js') }}"></script>
 <script>
 const video = document.getElementById('video');
-
-// Access phone camera
-navigator.mediaDevices.getUserMedia({ video: true })
-.then(stream => {
-    video.srcObject = stream;
+startCamera(video).catch(err => {
+    document.getElementById('statusLine').textContent = 'Camera error: ' + err.message;
 });
 
-// Capture image
-function capture() {
-    const canvas = document.getElementById('canvas');
-    const context = canvas.getContext('2d');
+function setStatus(text) {
+    document.getElementById('statusLine').textContent = text;
+}
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+function badgeHtml(decision, text) {
+    return `<span class="status-badge status-${decision}">${text}</span>`;
+}
 
-    context.drawImage(video, 0, 0);
+async function runVerification() {
+    const btn = document.getElementById('captureBtn');
+    btn.disabled = true;
+    document.getElementById('resultCard').classList.add('hidden');
 
-    const imageData = canvas.toDataURL('image/jpeg');
-    document.getElementById('imageData').value = imageData;
+    const requireLiveness = document.getElementById('livenessToggle').checked;
+    let image2 = null;
 
-    document.getElementById('uploadForm').submit();
+    const image1 = grabFrame(video);
+
+    if (requireLiveness) {
+        setStatus('Please blink now...');
+        await sleep(650);
+        image2 = grabFrame(video);
+    } else {
+        setStatus('Verifying...');
+    }
+
+    try {
+        const res = await fetch('/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: image1, image2: image2, liveness: requireLiveness })
+        });
+        const data = await res.json();
+        showResult(data);
+    } catch (err) {
+        setStatus('Request failed: ' + err.message);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function showResult(data) {
+    setStatus('');
+    const card = document.getElementById('resultCard');
+    card.classList.remove('hidden');
+
+    let label = '';
+    let message = data.message || '';
+    switch (data.decision) {
+        case 'matched':
+            label = badgeHtml('matched', `Matched: ${data.name}`);
+            message = `Confidence ${(data.score * 100).toFixed(1)}% (threshold ${(data.threshold * 100).toFixed(0)}%)`;
+            break;
+        case 'review':
+            label = badgeHtml('review', `Possible match: ${data.name}`);
+            message = `Confidence ${(data.score * 100).toFixed(1)}% is close to the threshold — flagged for manual review.`;
+            break;
+        case 'unknown':
+            label = badgeHtml('unknown', 'Unknown person');
+            message = data.name ? `Best guess "${data.name}" scored ${(data.score * 100).toFixed(1)}%, below threshold.` : 'No enrolled faces to compare against.';
+            break;
+        case 'no_face':
+            label = badgeHtml('no_face', 'No face detected');
+            break;
+        case 'liveness_fail':
+            label = badgeHtml('liveness_fail', 'Liveness check failed');
+            break;
+        default:
+            label = badgeHtml('error', 'Error');
+    }
+
+    document.getElementById('resultBadge').innerHTML = label;
+    document.getElementById('resultMessage').textContent = message;
+
+    const img = document.getElementById('resultImage');
+    if (data.annotated_image) {
+        img.src = data.annotated_image;
+        img.classList.remove('hidden');
+    } else {
+        img.classList.add('hidden');
+    }
+
+    const track = document.getElementById('scoreTrack');
+    const fill = document.getElementById('scoreFill');
+    if (typeof data.score === 'number') {
+        track.classList.remove('hidden');
+        fill.style.width = Math.max(0, Math.min(100, data.score * 100)) + '%';
+    } else {
+        track.classList.add('hidden');
+    }
+
+    const detailEl = document.getElementById('livenessDetail');
+    if (data.liveness) {
+        const checks = Object.entries(data.liveness.checks || {})
+            .map(([k, v]) => `${k}: ${v.passed ? '✓' : '✗'}`)
+            .join('  ·  ');
+        detailEl.textContent = 'Liveness — ' + checks;
+    } else {
+        detailEl.textContent = '';
+    }
 }
 </script>
-</body>
-</html>
+{% endblock %}

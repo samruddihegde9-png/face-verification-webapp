@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Enroll &middot; {{ app_name }}{% endblock %}
+{% block content %}
+<div class="card center">
+    <h2>Enroll a New Person</h2>
+    <p class="muted">Capture 2–4 shots from slightly different angles for a more robust match.</p>
+
+    <div class="field" style="max-width:320px; margin:0 auto 16px;">
+        <label for="nameInput">Name</label>
+        <input type="text" id="nameInput" placeholder="e.g. Priya Sharma">
+    </div>
+
+    <div class="video-wrap">
+        <video id="video" autoplay playsinline muted></video>
+    </div>
+
+    <div class="actions">
+        <button class="btn" id="shotBtn" onclick="takeShot()">Take Shot</button>
+        <button class="btn btn-secondary" onclick="clearShots()">Clear</button>
+    </div>
+
+    <div class="shots-row" id="shotsRow"></div>
+
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="submitEnrollment()" disabled>Enroll Person</button>
+    </div>
+
+    <p id="statusLine" class="muted" style="min-height:20px; margin-top:10px;"></p>
+</div>
+
+<script src="{{ url_for('static', filename='camera.js') }}"></script>
+<script>
+const video = document.getElementById('video');
+let shots = [];
+
+startCamera(video).catch(err => {
+    document.getElementById('statusLine').textContent = 'Camera error: ' + err.message;
+});
+
+function takeShot() {
+    if (shots.length >= 6) return;
+    shots.push(grabFrame(video));
+    renderShots();
+}
+
+function clearShots() {
+    shots = [];
+    renderShots();
+}
+
+function renderShots() {
+    const row = document.getElementById('shotsRow');
+    row.innerHTML = '';
+    shots.forEach((s, i) => {
+        const img = document.createElement('img');
+        img.src = s;
+        img.title = 'Shot ' + (i + 1) + ' (click to remove)';
+        img.onclick = () => { shots.splice(i, 1); renderShots(); };
+        row.appendChild(img);
+    });
+    document.getElementById('submitBtn').disabled = shots.length === 0;
+}
+
+async function submitEnrollment() {
+    const name = document.getElementById('nameInput').value.trim();
+    const status = document.getElementById('statusLine');
+    if (!name) { status.textContent = 'Enter a name first.'; return; }
+    if (shots.length === 0) { status.textContent = 'Take at least one shot.'; return; }
+
+    document.getElementById('submitBtn').disabled = true;
+    status.textContent = 'Enrolling...';
+
+    try {
+        const res = await fetch('/enroll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, images: shots })
+        });
+        const data = await res.json();
+        status.textContent = data.message;
+        if (data.ok) {
+            shots = [];
+            renderShots();
+        }
+    } catch (err) {
+        status.textContent = 'Request failed: ' + err.message;
+    } finally {
+        document.getElementById('submitBtn').disabled = shots.length === 0;
+    }
+}
+</script>
+{% endblock %}

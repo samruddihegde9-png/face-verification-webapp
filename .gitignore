@@ -1,12 +1,25 @@
 # Virtual environment
 venv/
+.venv/
 
 # Python cache
 __pycache__/
 *.pyc
 
-# Uploaded images
-uploads/
+# Environment variables
+.env
+
+# Uploaded / captured images
+uploads/*
+!uploads/.gitkeep
+
+# Local biometric seed photos
+faces_db/*
+!faces_db/.gitkeep
+
+# SQLite database + instance folder
+instance/*
+!instance/.gitkeep
 
 # InsightFace model cache (auto-downloaded)
 .insightface/

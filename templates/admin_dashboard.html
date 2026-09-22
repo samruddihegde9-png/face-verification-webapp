@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<h2>Admin Dashboard</h2>
+
+<div class="stats-grid">
+    <div class="stat-box"><div class="num">{{ stats.people }}</div><div class="label">People</div></div>
+    <div class="stat-box"><div class="num">{{ stats.total_attempts }}</div><div class="label">Attempts</div></div>
+    <div class="stat-box"><div class="num">{{ stats.matched }}</div><div class="label">Matched</div></div>
+    <div class="stat-box"><div class="num">{{ stats.unknown }}</div><div class="label">Unknown</div></div>
+    <div class="stat-box"><div class="num">{{ stats.liveness_fail }}</div><div class="label">Liveness fails</div></div>
+</div>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0;">Enrolled People</h3>
+        <a class="btn btn-sm" href="{{ url_for('enroll.enroll_page') }}">+ Enroll New</a>
+    </div>
+    <table class="data-table">
+        <thead><tr><th>Name</th><th>Photos</th><th>Enrolled</th><th></th></tr></thead>
+        <tbody>
+        {% for p in persons %}
+            <tr>
+                <td><a href="{{ url_for('admin.person_detail', person_id=p['id']) }}">{{ p['name'] }}</a></td>
+                <td>{{ p['embedding_count'] }}</td>
+                <td>{{ p['created_at'][:10] }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('admin.delete_person', person_id=p['id']) }}"
+                          onsubmit="return confirm('Delete {{ p['name'] }} and all their photos?');" style="display:inline;">
+                        <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="4" class="muted">No one enrolled yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="actions">
+    <a class="btn btn-secondary" href="{{ url_for('admin.history') }}">View History</a>
+    <a class="btn btn-secondary" href="{{ url_for('admin.settings') }}">Settings</a>
+</div>
+{% endblock %}

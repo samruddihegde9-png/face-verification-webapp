@@ -2,4 +2,5 @@ flask
 insightface
 onnxruntime
 opencv-python
-numpy 
+numpy
+python-dotenv

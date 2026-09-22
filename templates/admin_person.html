@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ person['name'] }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('admin.dashboard') }}">&larr; Back to dashboard</a></p>
+<h2>{{ person['name'] }}</h2>
+<p class="muted">Enrolled {{ person['created_at'][:10] }}</p>
+
+<div class="card">
+    <h3>Enrolled Photos</h3>
+    <table class="data-table">
+        <thead><tr><th>Photo</th><th>Added</th><th></th></tr></thead>
+        <tbody>
+        {% for e in embeddings %}
+            <tr>
+                <td>
+                    {% if e['image_path'] %}<img class="thumb" src="/media?path={{ e['image_path'] }}">{% else %}—{% endif %}
+                </td>
+                <td>{{ e['created_at'][:16].replace('T', ' ') }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('admin.delete_embedding', embedding_id=e['id']) }}" style="display:inline;">
+                        <input type="hidden" name="person_id" value="{{ person['id'] }}">
+                        <button class="btn btn-danger btn-sm" type="submit">Remove</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>Recent Verification Attempts</h3>
+    <table class="data-table">
+        <thead><tr><th>When</th><th>Decision</th><th>Score</th><th>Liveness</th></tr></thead>
+        <tbody>
+        {% for log in logs %}
+            <tr>
+                <td>{{ log['created_at'][:16].replace('T', ' ') }}</td>
+                <td><span class="status-badge status-{{ log['decision'] }}">{{ log['decision'] }}</span></td>
+                <td>{{ '%.2f'|format(log['score']) if log['score'] is not none else '—' }}</td>
+                <td>{% if log['liveness_passed'] is none %}n/a{% elif log['liveness_passed'] %}✓{% else %}✗{% endif %}</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="4" class="muted">No attempts yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
